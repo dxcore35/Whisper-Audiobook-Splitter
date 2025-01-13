@@ -1,0 +1,36 @@
+{
+    "en": [
+        "in chapter",
+        "next chapter",
+        "end of chapter",
+        "chapter summary",
+        "chapter review",
+        "chapter discussion",
+        "chapter analysis",
+        "chapter conclusion",
+        "chapter notes",
+        "chapter highlights",
+        "previous chapter",
+        "earlier chapter",
+        "in the last chapter",
+        "as mentioned in chapter",
+        "discussed in \\w+ chapter"
+    ],
+    "es": [
+        "en capítulo",
+        "siguiente capítulo",
+        "fin del capítulo",
+        "resumen del capítulo",
+        "revisión del capítulo",
+        "discusión del capítulo",
+        "análisis del capítulo",
+        "conclusión del capítulo",
+        "notas del capítulo",
+        "puntos destacados del capítulo",
+        "capítulo anterior",
+        "capítulo previo",
+        "en el último capítulo",
+        "como se menciona en el capítulo",
+        "discutido en \\w+ capítulo"
+    ]
+}
