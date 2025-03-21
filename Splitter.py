@@ -29,8 +29,8 @@ def parse_srt_file(srt_filename):
                 times = lines[1]
                 text = ' '.join(lines[2:])
                 start_str, end_str = times.split(' --> ')
-                start = parse_srt_time(start_str)
-                end = parse_srt_time(end_str)
+                start = parse_srt_time(start_str) * 100
+                end = parse_srt_time(end_str) * 100
                 segments.append(Segment(start, end, text))
     return segments
 
@@ -47,24 +47,27 @@ def create_cue_file(chapters, cue_filename):
         for i, (start, _, chapter_name) in enumerate(chapters):
             cue_file.write(f"  TRACK {i+1:02d} AUDIO\n")
             cue_file.write(f"    TITLE \"{chapter_name}\"\n")
-            cue_file.write(f"    INDEX 01 {format_time(start)}\n")
+            cue_file.write(f"    INDEX 01 {format_time((start) / 1000)}\n")
 
 def split_audio_file(file, chapters, output_dir):
     for i, (start, end, chapter_name) in enumerate(chapters):
         # Calculate the duration in seconds
-        duration = end - start
+        duration = (end / 1000) - (start / 1000)
 
         # Create a temporary file to store the audio segment
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as temp_audio_file:
             temp_audio_path = temp_audio_file.name
 
         # Extract the audio segment and save it to the temporary file
-        ffmpeg.input(file, ss=start, t=duration).output(temp_audio_path, format='wav').run(overwrite_output=True)
+        ffmpeg.input(file, ss=(start / 1000), t=duration).output(temp_audio_path, format='wav').run(overwrite_output=True)
 
         # Ensure valid file name
         chapter_name = re.sub(r'[^\w\-_\. ]', '_', chapter_name)  # Replace invalid characters with '_'
         chapter_name = chapter_name[:45]  # Limit the chapter name to 100 characters
-        output_file = os.path.join(output_dir, f"{i:02d}_{chapter_name}.mp3")
+        if args.chapter_index:
+            output_file = os.path.join(output_dir, f"{(i+args.chapter_index):02d}_{chapter_name}.mp3")
+        else:
+            output_file = os.path.join(output_dir, f"{i:02d}_{chapter_name}.mp3")
         
         # Save the audio segment as an MP3 file
         (
@@ -81,8 +84,8 @@ def split_audio_file(file, chapters, output_dir):
 def create_srt_file(segments, srt_filename):
     with open(srt_filename, 'w') as srt_file:
         for i, segment in enumerate(segments):
-            start_time = format_time(segment.t0 / 1000)  # Convert ms to seconds
-            end_time = format_time(segment.t1 / 1000)    # Convert ms to seconds
+            start_time = format_time(segment.t0 / 100)  # Convert decaseconds to seconds
+            end_time = format_time(segment.t1 / 100)    # Convert decaseconds to seconds
             srt_file.write(f"{i+1}\n{start_time} --> {end_time}\n{segment.text}\n\n")
 
 def load_skip_phrases(language_code):
@@ -100,19 +103,23 @@ def is_chapter(text, language_code='en'):
     for phrase in skip_phrases:
         if phrase.lower() in text.lower():
             return False
+    
+    if args.custom_chapter_phrase == "YK28sSr9w":
+        number_words = [
+            "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
+            "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen",
+            "eighteen", "nineteen", "twenty", "twenty-one", "twenty-two", "twenty-three",
+            "twenty-four", "twenty-five", "twenty-six", "twenty-seven", "twenty-eight",
+            "twenty-nine", "thirty", "thirty-one", "thirty-two", "thirty-three", "thirty-four",
+            "thirty-five", "thirty-six", "thirty-seven", "thirty-eight", "thirty-nine",
+            "forty", "forty-one", "forty-two", "forty-three", "forty-four", "forty-five",
+            "forty-six", "forty-seven", "forty-eight", "forty-nine", "fifty"
+        ]
+        number_pattern = r'\b(?:' + '|'.join(number_words) + r'|\d+)\b'
+        return re.search(r'\bChapter\s+' + number_pattern, text, re.IGNORECASE)
+    else:
+        return re.search(args.custom_chapter_phrase, text, re.IGNORECASE)
 
-    number_words = [
-        "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten",
-        "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen",
-        "eighteen", "nineteen", "twenty", "twenty-one", "twenty-two", "twenty-three",
-        "twenty-four", "twenty-five", "twenty-six", "twenty-seven", "twenty-eight",
-        "twenty-nine", "thirty", "thirty-one", "thirty-two", "thirty-three", "thirty-four",
-        "thirty-five", "thirty-six", "thirty-seven", "thirty-eight", "thirty-nine",
-        "forty", "forty-one", "forty-two", "forty-three", "forty-four", "forty-five",
-        "forty-six", "forty-seven", "forty-eight", "forty-nine", "fifty"
-    ]
-    number_pattern = r'\b(?:' + '|'.join(number_words) + r'|\d+)\b'
-    return re.search(r'\bChapter\s+' + number_pattern, text, re.IGNORECASE)
 
 class Segment:
     def __init__(self, t0, t1, text):
@@ -126,7 +133,7 @@ def create_markdown_file(chapters, segments, markdown_filename):
         for start, end, chapter_name in chapters:
             md_file.write(f"# {chapter_name}\n\n")
             chapter_text = " ".join(
-                segment.text for segment in segments if start <= segment.t0 < end
+                segment.text for segment in segments if start <= (segment.t0 * 10) < end
             )
             md_file.write(f"{chapter_text}\n\n")
 
@@ -134,7 +141,7 @@ def create_raw_file_with_timestamps(segments, raw_filename):
     """Create a raw file with segments including t0 and t1 timestamps."""
     with open(raw_filename, 'w') as raw_file:
         for segment in segments:
-            raw_file.write(f"t0: {segment.t0}, t1: {segment.t1}\n")
+            raw_file.write(f"t0: {(segment.t0 * 10)}, t1: {segment.t1 * 10}\n")
             raw_file.write(f"{segment.text}\n\n")
 
 def create_output_structure(file, chapters, segments):
@@ -176,8 +183,11 @@ def find_first_mp3_in_input():
 # Argument parsing
 parser = argparse.ArgumentParser()
 parser.add_argument("-i", "--input", help="Defines file to read from")
-parser.add_argument("--model", default="large-v3-turbo", help="Model to use")
+parser.add_argument("--model", default="base", help="Model to use")
 parser.add_argument("--threads", type=int, default=6, help="Number of threads to use")
+parser.add_argument("--custom_chapter_phrase", default="YK28sSr9w", help="Custom phrase to use for chapter detection instead of default")
+parser.add_argument("--chapter_index", type=int, default=0, help="Number at which chapter file names will start")
+parser.add_argument("--no_intro", help="Do not name first output file 'Intro'")
 
 args = parser.parse_args()
 
@@ -207,19 +217,23 @@ else:
 
 chapters = []
 current_start = 0  # Start from the beginning of the file
-current_chapter_name = "Intro"  # Default name for the first segment
+if args.no_intro:
+    current_chapter_name = "Chapter {args.chapter_index}"
+else:
+    current_chapter_name = "Intro"  # Default name for the first segment
+
 
 # Identify chapters based on the keyword "Chapter" followed by a number
 for segment in segments:
     if is_chapter(segment.text):
         if current_start is not None:
-            chapters.append((current_start, segment.t0, current_chapter_name))
-        current_start = segment.t0
+            chapters.append((current_start, (segment.t0 * 10), current_chapter_name))
+        current_start = segment.t0 * 10
         current_chapter_name = segment.text
 
 # Add the last chapter if it exists
 if current_start is not None:
-    chapters.append((current_start, segments[-1].t1, current_chapter_name))
+    chapters.append((current_start, segments[-1].t1 * 10, current_chapter_name))
 
 # Create structured output
 create_output_structure(file, chapters, segments)

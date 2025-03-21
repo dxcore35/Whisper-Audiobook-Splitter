@@ -37,6 +37,8 @@ This script is designed to split an audiobook into chapters based on detected ch
 
 - **Skip Phrases**: You can customize the phrases to skip when detecting chapters by editing the `skip_phrases.json` file.
 
+- **Chapter Phrase**: You can change what phrase to look for as the seperator between chapters using the '--chapter_phrase' option
+
 ## License
 
 This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
